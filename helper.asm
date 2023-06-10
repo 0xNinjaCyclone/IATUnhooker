@@ -36,7 +36,7 @@ GetImgBaseAddr proc
 	mov edi, 00004550h        ; NT Headers Signature
 	add rbx, rax              ; BaseAddress + DOS->e_lfanew
 	mov esi, dword ptr [rbx]  ; ( PIMAGE_NT_HEADERS )->Signature 
-	cmp esi, edi              ; *pCurrentAddr == IMAGE_NT_SIGNATURE ?
+	cmp esi, edi              ; Signature == IMAGE_NT_SIGNATURE ?
 	pop di                    ; Restore PE magic number
 	jne FIND_MAGIC            ; So far
 
