@@ -1,5 +1,5 @@
 /*
-	Author      =>  Abdallah Mohamed
+	Author      =>  Abdallah Mohamed ( 0xNinjaCyclone )
 	Date        =>  14-5-2023/10:13PM
 	Greetz to   =>  Hossam Ehab
 */
@@ -13,6 +13,7 @@
 typedef enum UNHOOK_STATUS { UNHOOK_SUCCESS, NO_HOOKS, NO_IMPORTS, INVALID_PE, UNHOOK_FAIL } UNHOOK_STATUS;
 
 extern LPVOID GetImgBaseAddr();
+extern LPVOID ResolveAddrByOrdinal(HMODULE, DWORD, LPCSTR *);
 
 
 UNHOOK_STATUS UnhookIAT(LPVOID lpImgBaseAddr)
@@ -32,16 +33,22 @@ UNHOOK_STATUS UnhookIAT(LPVOID lpImgBaseAddr)
 
 		while ( DEREF(dwpIAT) )
 		{
-			PIMAGE_IMPORT_BY_NAME pLookup = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)lpImgBaseAddr + pILT->u1.AddressOfData);
-			DWORD_PTR dwpTrueAddr = (DWORD_PTR)GetProcAddress(
-				hModule,
-				pLookup->Name
-			);
+			DWORD_PTR dwpTrueAddr = 0;
+			LPCSTR cpFuncName = NULL;
+
+			if ( pILT->u1.Ordinal & IMAGE_ORDINAL_FLAG )
+				dwpTrueAddr = (DWORD_PTR)ResolveAddrByOrdinal( hModule, IMAGE_ORDINAL(pILT->u1.Ordinal), &cpFuncName );
+
+			else {
+				PIMAGE_IMPORT_BY_NAME pLookup = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)lpImgBaseAddr + pILT->u1.AddressOfData);
+				cpFuncName = pLookup->Name;
+				dwpTrueAddr = (DWORD_PTR)GetProcAddress( hModule, cpFuncName );
+			}
 
 			if ( DEREF(dwpIAT) != dwpTrueAddr )
 			{
 				bNoHooks = FALSE;
-				printf("[-] Function Name %s in %s DLL is Hooked, its address is 0x%p, the true address is 0x%p\n", pLookup->Name, (LPCSTR)((DWORD_PTR)lpImgBaseAddr + pDescriptor->Name), (PVOID)DEREF(dwpIAT), (PVOID)dwpTrueAddr);
+				printf("[-] Function Name %s in %s DLL is Hooked, its address is 0x%p, the true address is 0x%p\n", cpFuncName, (LPCSTR)((DWORD_PTR)lpImgBaseAddr + pDescriptor->Name), (PVOID)DEREF(dwpIAT), (PVOID)dwpTrueAddr);
 
 				/* Unhook it */
 				DWORD dwOldProtect = 0;
